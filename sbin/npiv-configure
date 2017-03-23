@@ -1,0 +1,77 @@
+#!/bin/bash
+
+source /sbin/npiv-common
+
+##############################################################################
+#Parse config file and perform designated actions on valid lines for service
+#start/stop scenarios
+configure_vports() {
+    local wwnn wwpn vwwnn vwwpn af df fname lnum=0 result host_wwnn host_wwpn udev_full_path udev_path input
+
+    [ ! -f /etc/sysconfig/npiv ] &&
+        exit_with_error "Error configuration file not found"
+    [ "$1" != "enable" -a "$1" != "disable" ] &&
+        exit_with_error "Internal error configure_vports called incorrectly"
+
+    while read wwnn wwpn vwwnn vwwpn af df fname; do
+        let lnum+=1
+
+        check_for_comment "$wwnn"
+        [ $? -eq 0 ] && continue  #skip comment/blank lines
+
+        result=$(validate_and_reformat_wwn "$wwnn")
+        [ $? -ne 0 ] && echo "Skipping line number:$lnum bad wwpn $wwnn" && continue
+        wwnn="$result"
+
+        result=$(validate_and_reformat_wwn "$wwpn")
+        [ $? -ne 0 ] && echo "Skipping line number:$lnum bad wwpn $wwpn" && continue
+        wwpn="$result"
+
+        result=$(validate_and_reformat_wwn "$vwwnn")
+        [ $? -ne 0 ] && echo "Skipping line number:$lnum bad vwwnn $vwwnn" && continue
+        vwwnn="$result"
+
+        result=$(validate_and_reformat_wwn "$vwwpn")
+        [ $? -ne 0 ] && echo "Skipping line number:$lnum bad vwwpn $vwwpn" && continue
+        vwwpn="$result"
+
+        af=${af^[yn]}
+        [ "$af" != "Y" -a "$af" != "N" ] && echo \
+            "Skipping line:$lnum - Invalid activate flag \"$af\"" && continue
+        [ "$af" = "N" -a "$1" = "enable" ] &&  continue
+
+        df=${df^[yn]}
+        [ "$df" != "Y" -a "$df" != "N" ] && echo \
+            "Skipping line:$lnum - Invalid deactivate flag \"$df\"" && continue
+        [ "$df" = "N" -a "$1" = "disable" ] && continue
+
+        configure_vport "$1" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
+
+    done < /etc/sysconfig/npiv
+}
+
+
+
+##############################################
+##############################################
+##############################################
+
+case $1 in
+    Start)
+        echo Starting
+        configure_vports enable
+        ;;
+    Stop)
+        echo Stoping
+        configure_vports disable
+        ;;
+    Reload)
+        echo Reloading
+        configure_vports enable
+        ;;
+    *)
+        echo Unknown option $1
+        exit 1
+esac
+
+

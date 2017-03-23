@@ -1,0 +1,147 @@
+.TH npiv 8 "23 Feb 2017" 1.0
+.SH NAME
+npiv - utility for interacting with systemd npiv service to configure fiber channel npiv capable adapters
+
+.SH SYNOPSIS
+
+.B
+npiv
+show {configured|active}
+.in +1i
+.br
+ 
+shows information about npiv hosts configurations stored in the config file, or about the currently active npiv hosts on the system
+.br 
+ 
+.I 
+configured
+- lists npiv adapters currently configured in /etc/sysconfig/npiv configuration file.
+.br
+.I
+active
+- lists npiv adapters currently active/running on this system
+.in 0i
+.PP
+.B
+npiv
+info {adapters|vadapters}
+.in +1i
+.br
+ 
+displays information about fiber channel host adapters, and npiv hosts currently active on the system. 
+.br
+ 
+.I
+adapters
+- list information about physical adapters including: hostname, wwnn, wwpn, supported speeds, current speed, port state, port type, fabric name
+.br
+.I
+vadapters
+- list information about npiv adapter including: hostname, node name, port name, port state, port type, fabric name, current speed, parent, parent wwnn:wwpn, and friendly name if available
+.in 0i
+.PP
+.B
+npiv
+configure [-now] [-aas={y|n}] [-das={y|n}] [-fn=friendly_name] wwnn wwpn wwvnn wwvpn
+.in +1i
+.br
+ 
+Adds an entry to the npiv configuration file
+ 
+.br
+.I
+-now
+- in addition to updating the configuration file also immediately create the npiv host
+.br
+.I
+-aas
+- specify the Auto Activate on Start flag.  This controls whether a systemd start of the npiv service will cause the automatic creation of the npiv host.  If unspecified the default is yes.
+.br
+.I
+-das
+- specify the Deactivate At Stop flag.  This controls whether a systemd stop of the npiv service will cause the automatic deletion of the npiv host.  If unspecified the default is yes.
+.br
+.I
+wwnn wwpn
+- the physical adapter's (to which the npiv host will be added) node name and port name
+.br
+.I
+wwvnn wwvpn
+- the node name and port name of the npiv adapter to add
+
+.in 0i
+.PP
+.B
+npiv
+unconfigure [-now] {-fn=frienldy_name | wwnn wwpn wwvnn wwvpn}
+.in +1i
+.br
+ 
+removes an entry from the npiv configuration file
+ 
+.br
+.I
+-now
+- in addition to updating the configuration file also immediately remove the npiv host
+.br
+.I
+-fn
+- use the friendly name to select the npiv host to unconfigure instead of the wwn nomenclature
+.br
+.I
+wwnn wwpn
+- the physical adapter's (from which the npiv host will be removed) node name and port name
+.br
+.I
+wwvnn wwvpn
+- the node name and port name of the npiv adapter to be removed
+.in 0i
+.PP
+.B
+npiv
+activate { -fn=friendly_name | wwnn wwpn wwvnn wwvpn }
+.in +1i
+.br
+ 
+immediately activates an npiv host
+  
+.I
+-fn
+- use the friendly name to select the npiv host to activate instead of the wwn nomenclature
+.br
+.I
+wwnn wwpn
+- the physical adapter's (to which the npiv host will be added) node name and port name
+.br
+.I
+wwvnn wwvpn
+- the node name and port name of the npiv adapter to add
+.in 0i
+.PP
+.B
+npiv
+deactivate { -fn=friendly_name | wwnn wwpn wwvnn wwvpn }
+.in +1i
+.br
+
+immediately deactivates an npiv host
+
+.I
+-fn
+- use the friendly name to select the npiv host to activate instead of the wwn nomenclature
+.br
+.I
+wwnn wwpn
+- the physical adapter's (from which the npiv host will be removed) node name and port name
+.br
+.I
+wwvnn wwvpn
+- the node name and port name of the npiv adapter to remove
+.in 0i
+
+.SH FILES
+/etc/sysconfig/npiv
+.SH SEE ALSO
+Documentation/scsi/scsi_fc_transport.txt
+.br
+npiv(5)

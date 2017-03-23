@@ -1,0 +1,14 @@
+	npiv a Linux Fiber Channel NPIV configuration tool
+
+
+npiv is a systemd configuration service and command line interface for
+configuring Fiber Channel NPIV connections.  
+
+The systemd service acts on a configuration file to create and destroy NPIV
+connections at service startup and shutdown.
+
+The npiv command line utility allows the insertion and deletion of entries
+into the configuration file used by the systemd service.  It also allows for
+the immediate activation and deactivation of NPIV interfaces.
+
+The project is licensed under the GPL.

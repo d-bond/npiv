@@ -1,0 +1,206 @@
+#!/bin/bash
+
+##############################################################################
+printhelp() {
+echo  "npiv: show {configured | active}"
+echo  "npiv: info {adapter|vadapter}"
+echo  "npiv: configure [-now] [-aas={y|n}] [-das={y|n}] [-fn=friendly_name] wwnn wwpn wwvnn wwvpn"
+echo  "npiv: unconfigure [-now] {-fn=friendly_name | wwnn wwpn wwvnn wwvpn}"
+echo  "npiv: activate {-fn=friendly_name | wwnn wwpn wwvnn wwvpnn}"
+echo  "npiv: deactivate {-fn=friendly_name | wwnn wwpn wwvnn wwvpnn}"
+}
+
+invalid_usage() {
+    printhelp
+    exit 1
+}
+
+exit_with_error() {
+echo $1
+exit 1
+}
+
+##############################################################################
+validate_and_reformat_wwn() {
+    local w_colons wo_colons proper
+    O1="$1"
+    [ "${1:0:2}" = "0x" ] && 
+        O1="${1#0x}"
+    #must be either 16 hex digits
+    wo_colons=${O1##[[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]][[:xdigit:]]}
+    #or 8 sets of 2 hex digits with :'s between
+   w_colons=${O1##[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]:[[:xdigit:]][[:xdigit:]]}
+
+    #fail if it doesn't match one of the patterns
+    [ ${#w_colons} -ne 0 -a ${#wo_colons} -ne 0 ]  && return 1
+
+    proper=${O1//:/}                      #strip the colons, if there were any
+    [ ${#proper} -ne 16 ] && return 1    #must be 16 hex digits
+    proper=${proper,,[A-F]}              #force lowercase a-f
+    echo "$proper"
+    return 0
+}
+
+##############################################################################
+check_for_comment() {
+    local testvar
+    testvar=${1##*([[:space:]])}    #strip leading spaces
+    [ "$testvar" = "" ] && return 0 #ignore blank lines
+    [ "${testvar:0:1}" = "#" ]      #does it start with a #
+    return $?
+}
+
+##############################################################################
+validate_config_entry() {
+    local wwpn=$1 vwwwn=$2 vwwpn=$3 comment=$4 result
+
+    result=$(validate_and_reformat_wwn "$wwpn")
+    [ $? -ne 0 ] && echo "bad wwpn: $wwpn" && return 1
+    wwpn="$result"
+
+    result=$(validate_and_reformat_wwn "$vwwwn")
+    [ $? -ne 0 ] && echo "bad vwwwn: $vwwwn" && return 1
+    vwwwn="$result"
+
+    result=$(validate_and_reformat_wwn "$vwwpn")
+    [ $? -ne 0 ] && echo "bad vwwpn: $vwwpn" && return 1
+    vwwpn="$result"
+
+    check_for_comment "$comment"
+    [ $? -ne 0 ] && echo "bad comment: $comment" && return 1
+
+    echo "$wwpn $vwwwn $vwwpn $comment"
+    return 0
+}
+
+##############################################################################
+#Find existing npiv hosts
+get_virtual_npiv_hosts() {
+    local host port_type
+
+    if [ -d /sys/class/fc_host ]; then
+       for host in /sys/class/fc_host/*;do
+           read port_type < "$host/port_type"
+           [ "$port_type" = "NPIV VPORT" ] &&
+               echo -n "$host "
+#               echo -n "${host##*/} "
+       done
+    fi
+}
+
+##############################################################################
+#returns a list of all fiber channel adapters
+get_all_hosts() {
+    if [ -d /sys/class/fc_host ]; then
+        fc_adapters=/sys/class/fc_host/*
+        echo "$fc_adapters"
+    fi
+    return 0
+}
+##############################################################################
+#Find FC hosts that are npiv capable and attached to a fabric
+#returns list of fully pathed entries /sys/class/fc_host/hostXX
+get_npiv_capable_hosts() {
+    local max_npiv_vports port_type
+
+    if [ -d /sys/class/fc_host ]; then
+        for host in /sys/class/fc_host/*; do
+            if [ -f "$host/max_npiv_vports" ]; then
+                read port_type < $host/port_type
+                [ "${port_type%% *}" != "NPort" ] && continue
+                read max_npiv_vports < $host/max_npiv_vports
+                [ $max_npiv_vports -ge 1 ] && echo -n "$host "
+            fi
+        done
+    fi
+    return 0
+}
+
+##############################################################################
+get_npiv_info() {
+    #create arrays of npiv vhosts and their parent host
+    declare -a -g npiv_hosts npiv_parents npiv_wwnns npiv_wwpns npiv_parent_wwnns npiv_parent_wwpns
+    npiv_hosts=($(get_virtual_npiv_hosts))
+    x=0
+    while [ $x -lt ${#npiv_hosts[*]} ]; do
+        udev_full_path=$(udevadm info -q path -p ${npiv_hosts[$x]})
+        udev_path=${udev_full_path%%/vport*}
+        udev_path=${udev_path##*/}
+        npiv_parents[$x]="/sys/class/fc_host/$udev_path"
+        read input < ${npiv_hosts[x]}/node_name
+        npiv_wwnns[$x]=${input#0x}
+        read input < ${npiv_hosts[x]}/port_name
+        npiv_wwpns[$x]=${input#0x}
+        read input < ${npiv_parents[x]}/node_name
+        npiv_parent_wwnns[$x]=${input#0x}
+        read input < ${npiv_parents[x]}/port_name
+        npiv_parent_wwpns[$x]=${input#0x}
+#        echo found vhost ${npiv_wwnns[$x]} ${npiv_wwpns[$x]} attached to ${npiv_parent_wwnns[$x]} ${npiv_parent_wwpns[$x]}
+        let x+=1
+    done
+}
+
+
+
+
+##############################################################################
+#Configures (enables/disables) a single npiv host
+configure_vport() {
+#    configure_vport "$1" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
+    [ $# -ne 5 ] && exit_with_error "Internal error in configure_vport"
+    local wwnn=$2 wwpn=$3 vwwnn=$4 vwwpn=$5
+
+    [  "$1" != "enable" -a "$1" != "disable" ] &&
+           exit_with_error "Internal error configure_vport called incorrectly"
+
+    npiv_capable_hosts=$(get_npiv_capable_hosts)
+    get_npiv_info
+
+    #Look for appropriate physical host to update with change
+    local match=0
+    for host in $npiv_capable_hosts;do
+        read host_wwnn < $host/node_name
+        read host_wwpn < $host/port_name
+           if [ "0x$wwnn" = "$host_wwnn" -a "0x$wwpn" = "$host_wwpn" ]; then
+               match=1
+               if [ "$1" = "enable" ]; then
+                   #echo "configure_vport: add $vwwnn:$vwwpn to $wwnn:$wwpn"
+                   x=0
+                   while [ $x -lt ${#npiv_hosts[*]} ]; do
+                       if [ "${npiv_wwnns[$x]}" = "$vwwnn" -a "${npiv_wwpns[$x]}" = "$vwwpn" ]; then
+                           echo "adding virtual $vwwnn:$vwwpn to $wwnn:$wwpn - already active"
+                           break 2
+                       fi
+                       let x+=1
+                   done
+                   echo adding virtual $vwwnn:$vwwpn to $wwnn:$wwpn
+                   result=$(echo $vwwpn:$vwwnn  2>&1 >$host/vport_create)
+                   [ $? -ne 0 ] && #strip leading noise, report error
+                       echo "Error adding $vwwnn:$vwwpn to $wwnn:$wwpn \"${result#*:*:*:*: }\""
+                   break
+               fi
+               if [ "$1" = "disable" ]; then
+                   #echo "configure_vport: delete  $vwwnn:$vwwpn from $wwnn:$wwpn"
+                   skip=1
+                   x=0
+                   while [ $x -lt ${#npiv_hosts[*]} ]; do
+                       if [ "${npiv_wwnns[$x]}" = "$vwwnn" -a "${npiv_wwpns[$x]}" = "$vwwpn" ]; then
+                           skip=0
+                       fi
+                       let x+=1
+                   done
+                   if [ $skip = 1 ]; then
+                       echo "removing virtual $vwwnn:$vwwpn from $wwpn:$wwpn - not active"
+                       break
+                   fi
+                   echo "deleting virtual $vwwnn:$vwwpn from $wwpn:$wwpn"
+                   result=$(echo $vwwpn:$vwwnn  2>&1 >$host/vport_delete)
+                   [ $? -ne 0 ] && #strip leading noise, report error
+                       echo "Error deleting $vwwnn:$vwwpn from $wwpn:$wwpn \"${result#*:*:*:*: }\""
+                   break
+               fi
+           fi
+    done
+    [ $match = 0 ] && echo "failed to $1 $vwwnn:$vwwpn to/from $wwnn:$wwpn host adapter unavailable"
+}
+

@@ -1,0 +1,26 @@
+#This file is used by the npiv service to configure vports on npiv capable
+#fiber channel adapters. See Documentation/scsi/scsi_fc_transport.txt for
+#more information about NPIV
+#
+#Entries should be of the format
+#
+# wwnn_of_the host_adapter wwpn_of_the_host adapter wwnn_of_the_vport wwpn_of_the_vport activate_on_start deactivate_on_stop friendly_name
+#
+# All wwn fields must be either 16 digit hexadecimal numbers without colons
+# 2100001b329b481d
+#
+# Or 8 sets of 2 hexadecimal digits colon delimited
+# 21:00:00:1b:32:9b:48:1d
+#
+# activate/deactivate flags must be Y or N
+# Fields may be seperated by spaces or tabs.
+# White space at the begininning of lines is ignored.
+# Blank lines and lines beginning with # are ignored.
+#
+#
+
+2000001b329b481d 2100001b329b481d 2000000000000001 2100000000000001 Y Y cluster disk 1
+2001001b32bb481d 2101001b32bb481d 2000000000000002 2100000000000002 N Y cluster disk 2
+2001001b32bb481d 2101001b32bb481d 2000000000000003 2100000000000003 Y N cluster disk 3
+2001001b32bb481d 2101001b32bb481d 2000000000000004 2100000000000004 Y Y cluster disk 4
+

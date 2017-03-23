@@ -1,0 +1,48 @@
+.TH npiv.conf 5 "" 1.0 
+.SH NAME
+npiv.conf - configuration file for the systemd 
+.BI npiv 
+configuration service
+.SH SYNOPSIS
+/etc/sysconfig/npiv
+.SH DESCRIPTION
+npiv is used by the npiv systemd service, and npiv configuration utility
+to configure (create/delete) fiber channel npiv services.
+
+Each entry should be of the format:
+
+.B
+.RS
+wwnn_of_the_host_adapter wwpn_of_the_host_adapter  wwnn_of_the_vadapter wwpn_of_the_vadapter aas_flag das_flag friendly_name
+.RE
+ 
+The first two fields are the node and port name of the physical fiber channel adapter to which the npiv host will be attached.  The 'npiv info adapters' command may be used to find this information.
+
+The next two fields (wwnn and wwpn of the vadapter) are the node name and port name which you wish to assign to the npiv host when it is created.
+
+The aas and das flags control whether the npiv host is automatically created (aas), and automatically destroyed (das) when the systemd npiv service is (respectively) started and stopped.
+
+The friendly name field is optional but allows a much more convient method of issuing commands against the npiv host than using the wwnn wwpn wwvnn wwvpn nomenclature to  specify the adapter for the command to act on.
+
+Each of the wwn fields must be a 16 digit hexadecimal number, and may be specified as either a plain 16 digit hexadecimal number without colons
+
+    2100001b329b481d
+
+or as 8 sets of 2 hexadecimal digits delimited by colons
+
+    21:00:00:1b:32:9b:48:1d
+
+Fields may be seperated by spaces or tabs.
+
+White space at the begininning of lines is ignored.
+
+Blank lines and lines beginning with # are ignored.
+
+Hand editing of the file is possible but discouraged.  Text formatting will not be preserved by the npiv utility on file updates.  Please see the npiv(8) man page configure/unconfigure options for information on how to create/remove entries from the config file.
+
+.SH FILES
+/etc/sysconfig/npiv
+.SH SEE ALSO
+Documentation/scsi/scsi_fc_transport.txt
+.br
+npiv(8)

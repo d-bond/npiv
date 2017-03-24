@@ -1,0 +1,18 @@
+[Unit]
+Description=npiv fc vport activation service
+#Wants=
+#After=
+Before=multipathd.service
+DefaultDependencies=false
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+ExecStart=/sbin/npiv-configure Start
+ExecStop=/sbin/npiv-configure Stop
+ExecReload=/sbin/npiv-configure Reload
+
+[Install]
+WantedBy=sysinit.target
+Alias=npiv.service

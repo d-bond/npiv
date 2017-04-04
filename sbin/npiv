@@ -4,10 +4,10 @@ source /sbin/npiv-common
 ##############################################################################
 #Read config file into global arrays with arr_index set to their sizes
 read_config_file() {
-    declare -g -a wwnn_arr wwpn_arr wwvnn_arr wwvpn_arr aas_arr das_arr fn_arr
+    declare -g -a wwnn_arr wwpn_arr vwwnn_arr vwwpn_arr aas_arr das_arr fn_arr
     arr_index=0
-    while read wwnn_arr[$arr_index] wwpn_arr[$arr_index] wwvnn_arr[$arr_index]\
-               wwvpn_arr[$arr_index] aas_arr[$arr_index] das_arr[$arr_index]\
+    while read wwnn_arr[$arr_index] wwpn_arr[$arr_index] vwwnn_arr[$arr_index]\
+               vwwpn_arr[$arr_index] aas_arr[$arr_index] das_arr[$arr_index]\
                fn_arr[$arr_index]; do
         check_for_comment "${wwnn_arr[$arr_index]}"
         [ $? -ne 0 ] && let arr_index+=1
@@ -20,8 +20,8 @@ read_config_file() {
 write_line_from_array_index() {
     [ -n ${wwwn_arr[$1]} ]    && echo -n "${wwnn_arr[$1]}" 
     [ -n "${wwpn_arr[$1]}" ]  && echo -n " ${wwpn_arr[$1]}" 
-    [ -n "${wwvnn_arr[$1]}" ] && echo -n " ${wwvnn_arr[$1]}" 
-    [ -n "${wwvpn_arr[$1]}" ] && echo -n " ${wwvpn_arr[$1]}" 
+    [ -n "${vwwnn_arr[$1]}" ] && echo -n " ${vwwnn_arr[$1]}" 
+    [ -n "${vwwpn_arr[$1]}" ] && echo -n " ${vwwpn_arr[$1]}" 
     [ -n "${aas_arr[$1]}" ]   && echo -n " ${aas_arr[$1]}" 
     [ -n "${das_arr[$1]}" ]   && echo -n " ${das_arr[$1]}" 
     [ -n "${fn_arr[$1]}" ]    && echo -n " ${fn_arr[$1]}"
@@ -36,17 +36,17 @@ add_entry() {
     read_config_file
     while [ $x -lt $arr_index ];do
         [ "${wwnn_arr[$x]}" = "$1" -a "${wwpn_arr[$x]}" = "$2" -a \
-             "${wwvnn_arr[$x]}" = "$3" -a "${wwvpn_arr[$x]}" = "$4" ] &&
+             "${vwwnn_arr[$x]}" = "$3" -a "${vwwpn_arr[$x]}" = "$4" ] &&
             exit_with_error "Entry already present for $1 $2 $3 $4"
         [ "${fn_arr[$x]}" = "$7" ] && exit_with_error "Friendly name \"$7\" already exists"
         let x+=1
     done
-    #wwnn wwpn wwvnn wwvpn aasflag dasflag friendly_name
+    #wwnn wwpn vwwnn vwwpn aasflag dasflag friendly_name
     echo "$1" "$2" "$3" "$4" "$5" "$6" "$7" >> /etc/sysconfig/npiv
 }
 
 ##############################################################################
-#takes elements of wwnn:wwpn wwvnn wwvpn or a friendly name
+#takes elements of wwnn:wwpn vwwnn vwwpn or a friendly name
 #reads config file and tries to find the corresponding entry
 #if found cfg file is re-written without that entry
 delete_entry() {
@@ -63,7 +63,7 @@ delete_entry() {
     while [ $x -lt $arr_index ];do
         if [ $by_wwn -eq 1 ]; then
             if [ "${wwnn_arr[$x]}"  = "$1" -a "${wwpn_arr[$x]}"  = "$2" -a \
-                 "${wwvnn_arr[$x]}" = "$3" -a "${wwvpn_arr[$x]}" = "$4" ]; then
+                 "${vwwnn_arr[$x]}" = "$3" -a "${vwwpn_arr[$x]}" = "$4" ]; then
                 selected_entry=$x
                 break
             fi
@@ -103,7 +103,7 @@ case $O1 in
             x=0
             while [ $x -lt ${#fn_arr[*]} ]; do
                 if [ "${fn_arr[$x]}" = "$fname" ]; then
-                    configure_vport "enable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${wwvnn_arr[$x]}" "${wwvpn_arr[$x]}"
+                    configure_vport "enable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${vwwnn_arr[$x]}" "${vwwpn_arr[$x]}"
                     break
                 fi
                 let x+=1
@@ -114,11 +114,11 @@ case $O1 in
             [ $? -ne 0 ] &&  exit_with_error "Bad wwnn: $1"
             wwpn=$(validate_and_reformat_wwn "$2")
             [ $? -ne 0 ] &&  exit_with_error "Bad wwpn: $2"
-            wwvnn=$(validate_and_reformat_wwn "$3")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $3"
-            wwvpn=$(validate_and_reformat_wwn "$4")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $4"
-            configure_vport "enable" "$wwnn" "$wwpn" "$wwvnn" "$wwvpn"
+            vwwnn=$(validate_and_reformat_wwn "$3")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwnn: $3"
+            vwwpn=$(validate_and_reformat_wwn "$4")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwpn: $4"
+            configure_vport "enable" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
         fi
         ;;
     configure)
@@ -172,13 +172,13 @@ case $O1 in
                 [ $? -ne 0 ] &&  exit_with_error "Bad wwnn: $1"
                 wwpn=$(validate_and_reformat_wwn "$2")
                 [ $? -ne 0 ] &&  exit_with_error "Bad wwpn: $2"
-                wwvnn=$(validate_and_reformat_wwn "$3")
-                [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $3"
-                wwvpn=$(validate_and_reformat_wwn "$4")
-                [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $4"
+                vwwnn=$(validate_and_reformat_wwn "$3")
+                [ $? -ne 0 ] &&  exit_with_error "Bad vwwnn: $3"
+                vwwpn=$(validate_and_reformat_wwn "$4")
+                [ $? -ne 0 ] &&  exit_with_error "Bad vwwpn: $4"
 
-                add_entry "$wwnn" "$wwpn" "$wwvnn" "$wwvpn" "$aasflag" "$dasflag" "$fname"
-                [ $nowflag -eq 1 ] && configure_vport "enable" "$wwnn" "$wwpn" "$wwvnn" "$wwvpn"
+                add_entry "$wwnn" "$wwpn" "$vwwnn" "$vwwpn" "$aasflag" "$dasflag" "$fname"
+                [ $nowflag -eq 1 ] && configure_vport "enable" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
                 ;;
     deactivate)
         shift 1
@@ -188,7 +188,7 @@ case $O1 in
             x=0
             while [ $x -lt ${#fn_arr[*]} ]; do
                 if [ "${fn_arr[$x]}" = "$fname" ]; then
-                    configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${wwvnn_arr[$x]}" "${wwvpn_arr[$x]}"
+                    configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${vwwnn_arr[$x]}" "${vwwpn_arr[$x]}"
                     break
                 fi
                 let x+=1
@@ -199,20 +199,22 @@ case $O1 in
             [ $? -ne 0 ] &&  exit_with_error "Bad wwnn: $1"
             wwpn=$(validate_and_reformat_wwn "$2")
             [ $? -ne 0 ] &&  exit_with_error "Bad wwpn: $2"
-            wwvnn=$(validate_and_reformat_wwn "$3")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $3"
-            wwvpn=$(validate_and_reformat_wwn "$4")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $4"
-            configure_vport "disable" "$wwnn" "$wwpn" "$wwvnn" "$wwvpn"
+            vwwnn=$(validate_and_reformat_wwn "$3")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwnn: $3"
+            vwwpn=$(validate_and_reformat_wwn "$4")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwpn: $4"
+            configure_vport "disable" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
         fi
         ;;
     info)
         O2=${2,,[A-Z]}
+        [ ${#O2} -gt 0 -a "$O2" != "adapters" -a "$O2" != "vadapters" ] &&
+           invalid_usage 
         adapters=$(get_all_hosts)
         for adapter in $adapters; do
             port_type=$(cat $adapter/port_type)
             pt=${port_type,,[A-Z]}
-            pt=${pt/npiv//}
+            pt=${pt/npiv/}
             [ ${#pt} != ${#port_type} -a "$O2" = "adapters" ] && 
                 continue #skip virtual npiv hosts on adapters info
             [ ${#pt} = ${#port_type} -a "$O2" = "vadapters" ] && 
@@ -244,7 +246,7 @@ case $O1 in
                 x=0
                 while [ $x -lt $arr_index ]; do
                     if [ "${wwnn_arr[$x]}" = "$parent_wwnn" -a "${wwpn_arr[$x]}" = "$parent_wwpn" -a \
-                         "${wwvnn_arr[$x]}" = "$node_name" -a "${wwvpn_arr[$x]}" = "$port_name" ]; then
+                         "${vwwnn_arr[$x]}" = "$node_name" -a "${vwwpn_arr[$x]}" = "$port_name" ]; then
                         [ ${#fn_arr} -gt 0 ] && echo "friendly name: ${fn_arr[$x]}"
                     fi
                     let x+=1
@@ -284,7 +286,7 @@ case $O1 in
                     x=0
                     while [ $x -lt $arr_index ]; do
                         if [ "${wwnn_arr[$x]}" = "$parent_wwnn" -a "${wwpn_arr[$x]}" = "$parent_wwpn" -a \
-                             "${wwvnn_arr[$x]}" = "$wwnn" -a "${wwvpn_arr[$x]}" = "$wwpn" ]; then
+                             "${vwwnn_arr[$x]}" = "$wwnn" -a "${vwwpn_arr[$x]}" = "$wwpn" ]; then
                             [ ${#fn_arr} -gt 0 ] && echo "friendly name: ${fn_arr[$x]}"
                         fi
                         let x+=1
@@ -338,21 +340,21 @@ case $O1 in
             [ $? -ne 0 ] &&  exit_with_error "Bad wwnn: $1"
             wwpn=$(validate_and_reformat_wwn "$2")
             [ $? -ne 0 ] &&  exit_with_error "Bad wwpn: $2"
-            wwvnn=$(validate_and_reformat_wwn "$3")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $3"
-            wwvpn=$(validate_and_reformat_wwn "$4")
-            [ $? -ne 0 ] &&  exit_with_error "Bad wwvpn: $4"
-            delete_entry "by_wwn" "$wwnn" "$wwpn" "$wwvnn" "$wwvpn"
-            configure_vport "disable" "$wwnn" "$wwpn" "$wwvnn" "$wwvpn"
+            vwwnn=$(validate_and_reformat_wwn "$3")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwnn: $3"
+            vwwpn=$(validate_and_reformat_wwn "$4")
+            [ $? -ne 0 ] &&  exit_with_error "Bad vwwpn: $4"
+            delete_entry "by_wwn" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
+            configure_vport "disable" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
         else
             delete_entry "by_fname" "$fname"
-            #declare -g -a wwnn_arr wwpn_arr wwvnn_arr wwvpn_arr aas_arr das_arr fn_arr
+            #declare -g -a wwnn_arr wwpn_arr vwwnn_arr vwwpn_arr aas_arr das_arr fn_arr
             if [ $nowflag -eq 1 ]; then
             x=0
             while [ $x -lt ${#fn_arr[*]} ]; do
                 if [ "${fn_arr[$x]}" = "$fname" ]; then
-                    configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${wwvnn_arr[$x]}" "${wwvpn_arr[$x]}"
-                    echo configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${wwvnn_arr[$x]}" "${wwvpn_arr[$x]}"
+                    configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${vwwnn_arr[$x]}" "${vwwpn_arr[$x]}"
+                    echo configure_vport "disable" "${wwnn_arr[$x]}" "${wwpn_arr[$x]}" "${vwwnn_arr[$x]}" "${vwwpn_arr[$x]}"
                     break
                 fi
                 let x+=1

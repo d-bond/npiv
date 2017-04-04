@@ -91,6 +91,7 @@ get_virtual_npiv_hosts() {
 ##############################################################################
 #returns a list of all fiber channel adapters
 get_all_hosts() {
+    local fc_adapters
     if [ -d /sys/class/fc_host ]; then
         fc_adapters=/sys/class/fc_host/*
         echo "$fc_adapters"
@@ -120,6 +121,7 @@ get_npiv_capable_hosts() {
 get_npiv_info() {
     #create arrays of npiv vhosts and their parent host
     declare -a -g npiv_hosts npiv_parents npiv_wwnns npiv_wwpns npiv_parent_wwnns npiv_parent_wwpns
+    local udev_full_path udev_path
     npiv_hosts=($(get_virtual_npiv_hosts))
     x=0
     while [ $x -lt ${#npiv_hosts[*]} ]; do
@@ -154,7 +156,7 @@ configure_vport() {
            exit_with_error "Internal error configure_vport called incorrectly"
 
     npiv_capable_hosts=$(get_npiv_capable_hosts)
-    get_npiv_info
+    get_npiv_info #populate npiv_ arrays
 
     #Look for appropriate physical host to update with change
     local match=0
@@ -169,38 +171,40 @@ configure_vport() {
                    while [ $x -lt ${#npiv_hosts[*]} ]; do
                        if [ "${npiv_wwnns[$x]}" = "$vwwnn" -a "${npiv_wwpns[$x]}" = "$vwwpn" ]; then
                            echo "adding virtual $vwwnn:$vwwpn to $wwnn:$wwpn - already active"
-                           break 2
+                           return 0
                        fi
                        let x+=1
                    done
                    echo adding virtual $vwwnn:$vwwpn to $wwnn:$wwpn
                    result=$(echo $vwwpn:$vwwnn  2>&1 >$host/vport_create)
-                   [ $? -ne 0 ] && #strip leading noise, report error
+                   if [ $? -ne 0 ]; then #strip leading noise, report error
                        echo "Error adding $vwwnn:$vwwpn to $wwnn:$wwpn \"${result#*:*:*:*: }\""
-                   break
+                       return 1
+                   fi
+                   return 0
                fi
                if [ "$1" = "disable" ]; then
                    #echo "configure_vport: delete  $vwwnn:$vwwpn from $wwnn:$wwpn"
-                   skip=1
                    x=0
                    while [ $x -lt ${#npiv_hosts[*]} ]; do
                        if [ "${npiv_wwnns[$x]}" = "$vwwnn" -a "${npiv_wwpns[$x]}" = "$vwwpn" ]; then
-                           skip=0
+                           echo "deleting virtual $vwwnn:$vwwpn from $wwpn:$wwpn"
+                           result=$(echo $vwwpn:$vwwnn  2>&1 >$host/vport_delete)
+                           if [ $? -ne 0 ]; then #strip leading noise, report error
+                               echo "Error deleting $vwwnn:$vwwpn from $wwpn:$wwpn \"${result#*:*:*:*: }\""
+                               return 1
+                           else
+                               return 0
+                           fi
                        fi
                        let x+=1
                    done
-                   if [ $skip = 1 ]; then
-                       echo "removing virtual $vwwnn:$vwwpn from $wwpn:$wwpn - not active"
-                       break
-                   fi
-                   echo "deleting virtual $vwwnn:$vwwpn from $wwpn:$wwpn"
-                   result=$(echo $vwwpn:$vwwnn  2>&1 >$host/vport_delete)
-                   [ $? -ne 0 ] && #strip leading noise, report error
-                       echo "Error deleting $vwwnn:$vwwpn from $wwpn:$wwpn \"${result#*:*:*:*: }\""
-                   break
+                   echo "removing virtual $vwwnn:$vwwpn from $wwpn:$wwpn - not active"
+                   return 0
                fi
            fi
     done
-    [ $match = 0 ] && echo "failed to $1 $vwwnn:$vwwpn to/from $wwnn:$wwpn host adapter unavailable"
+    echo "failed to $1 $vwwnn:$vwwpn to/from $wwnn:$wwpn host adapter unavailable"
+    return 1
 }
 

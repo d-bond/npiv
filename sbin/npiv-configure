@@ -6,7 +6,7 @@ source /sbin/npiv-common
 #Parse config file and perform designated actions on valid lines for service
 #start/stop scenarios
 configure_vports() {
-    local wwnn wwpn vwwnn vwwpn af df fname lnum=0 result host_wwnn host_wwpn udev_full_path udev_path input
+    local wwnn wwpn vwwnn vwwpn af df fname lnum=0 result
 
     [ ! -f /etc/sysconfig/npiv ] &&
         exit_with_error "Error configuration file not found"
@@ -48,6 +48,7 @@ configure_vports() {
         configure_vport "$1" "$wwnn" "$wwpn" "$vwwnn" "$vwwpn"
 
     done < /etc/sysconfig/npiv
+    return 0
 }
 
 

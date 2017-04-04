@@ -3,11 +3,11 @@
 ##############################################################################
 printhelp() {
 echo  "npiv: show {configured | active}"
-echo  "npiv: info {adapter|vadapter}"
-echo  "npiv: configure [-now] [-aas={y|n}] [-das={y|n}] [-fn=friendly_name] wwnn wwpn wwvnn wwvpn"
-echo  "npiv: unconfigure [-now] {-fn=friendly_name | wwnn wwpn wwvnn wwvpn}"
-echo  "npiv: activate {-fn=friendly_name | wwnn wwpn wwvnn wwvpnn}"
-echo  "npiv: deactivate {-fn=friendly_name | wwnn wwpn wwvnn wwvpnn}"
+echo  "npiv: info {adapters|vadapters}"
+echo  "npiv: configure [-now] [-aas={y|n}] [-das={y|n}] [-fn=friendly_name] wwnn wwpn vwwnn vwwpn"
+echo  "npiv: unconfigure [-now] {-fn=friendly_name | wwnn wwpn vwwnn vwwpn}"
+echo  "npiv: activate {-fn=friendly_name | wwnn wwpn vwwnn vwwpnn}"
+echo  "npiv: deactivate {-fn=friendly_name | wwnn wwpn vwwnn vwwpnn}"
 }
 
 invalid_usage() {
